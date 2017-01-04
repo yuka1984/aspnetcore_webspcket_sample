@@ -122,7 +122,7 @@ namespace WebSocketChatSample
                 }
                 else if (result.EndOfMessage)
                 {
-                    if (resultCount == 0)
+                    if (result.MessageType == WebSocketMessageType.Close ||　resultCount == 0)
                     {
                         _receiveSubject.OnCompleted();
                         break;
