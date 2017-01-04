@@ -34,7 +34,7 @@
             <h1>WebSocket Chat Sample</h1>
             <p>ASP.NET CoreでWebSocketを扱うサンプルアプリケーションです。</p>
             <div v-if="!isOpen" class="input-group">
-                <input type="text" v-model="userName" class="form-control" placeholder="input user name">
+                <input type="text" v-model="userName" v-on:keyup.enter="Connect" class="form-control" placeholder="input user name">
                 <span class="input-group-btn">
                     <button v-on:click="Connect" class="btn btn-default" type="button">参加</button>
                 </span>
@@ -54,7 +54,7 @@
         <div class="container">
             <div v-if="isOpen" class="row">
                 <div class="input-group">
-                    <input type="text" v-model="sendMessage" class="form-control" placeholder="input message">
+                    <input type="text" v-model="sendMessage" v-on:keyup.enter="Send" class="form-control" placeholder="input message">
                     <span class="input-group-btn">
                         <button v-on:click="Send" class="btn btn-default" type="button">送信</button>
                     </span>
