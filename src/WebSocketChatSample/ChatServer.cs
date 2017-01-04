@@ -9,8 +9,8 @@ namespace WebSocketChatSample
 {
     public class ChatServer
     {
-        private List<Client> _clients = new List<Client>();
-        private object _lockobj = new object();
+        private readonly AsyncLock _asyncLock = new AsyncLock();
+        private readonly List<ChatClient> _clients = new List<ChatClient>();
 
         public void Map(IApplicationBuilder app)
         {
@@ -27,58 +27,64 @@ namespace WebSocketChatSample
                 return;
             }
             var websocket = await hc.WebSockets.AcceptWebSocketAsync();
-            var client = new Client(websocket);
+            var client = new ChatClient(websocket);
 
-            await client.WaitJoinAsync();
+            await client.RecieveJoinAsync();
 
             if (!client.IsJoin)
                 return;
-
-            // 入室メッセージを送信
-            _clients.ForEach(
-                x =>
-                    x.OnNext(new ChatMessage
-                    {
-                        UserName = "管理者",
-                        Message = $"{client.UserName} さんが入室しました",
-                        RecieveTime = DateTimeOffset.Now
-                    }));
-
-            // ほかのクライアントと連結
-            _clients.ForEach(c =>
+            using (await _asyncLock.LockAsync())
             {
-                c.Subscribe(client);
-                client.Subscribe(c);
-            });
+                _clients.AsParallel().ForAll(
+                    x =>
+                    {
+                        // 入室メッセージを送信
+                        x.OnNext(new ChatMessage
+                        {
+                            UserName = "管理者",
+                            Message = $"{client.UserName} さんが入室しました",
+                            RecieveTime = DateTimeOffset.Now
+                        });
 
-            // 自分自身と連結
-            client.Subscribe(client);
+                        // ほかのクライアントと相互接続
+                        x.Subscribe(client);
+                        client.Subscribe(x);
+                    });
 
-            _clients.Add(client);
-            client.Subscribe(s => { }, Close);
+                // エコーバック
+                client.Subscribe(client);
 
+                // 切断時動作
+                client.Subscribe(s => { }, async () => await Close(client));
+
+                // クライアント登録
+                _clients.Add(client);
+            }
+
+            // 受信待機
             await client.ReceiveAsync();
         }
 
-        private void Close()
+        private async Task Close(ChatClient client)
         {
-            var removeclients = _clients.Where(x => !x.IsOpen).ToList();
-            removeclients.ForEach(x => x.Dispose());
-            _clients = _clients.Where(x => x.IsOpen).ToList();
+            using (await _asyncLock.LockAsync())
+            {
+                _clients.Remove(client);
 
-            // 退室メッセージを送信
-            removeclients.ForEach(
-                x =>
-                {
-                    _clients.ForEach(
-                        y =>
-                            y.OnNext(new ChatMessage
-                            {
-                                UserName = "管理者",
-                                Message = $"{x.UserName} さんが退室しました",
-                                RecieveTime = DateTimeOffset.Now
-                            }));
-                });
+                // 退室メッセージを送信
+                _clients.ForEach(
+                    x =>
+                    {
+                        _clients.ForEach(
+                            y =>
+                                y.OnNext(new ChatMessage
+                                {
+                                    UserName = "管理者",
+                                    Message = $"{x.UserName} さんが退室しました",
+                                    RecieveTime = DateTimeOffset.Now
+                                }));
+                    });
+            }
         }
     }
 }

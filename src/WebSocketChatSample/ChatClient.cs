@@ -9,20 +9,36 @@ using Newtonsoft.Json;
 
 namespace WebSocketChatSample
 {
-    public class Client : IObservable<ChatMessage>, IObserver<ChatMessage>, IDisposable
+    public class ChatClient : IObservable<ChatMessage>, IObserver<ChatMessage>, IDisposable
     {
         private readonly Subject<ChatMessage> _receiveSubject;
         private readonly WebSocket _socket;
 
-        public Client(WebSocket socket)
+        public ChatClient(WebSocket socket)
         {
             _socket = socket;
             _receiveSubject = new Subject<ChatMessage>();
         }
 
+        /// <summary>
+        /// WebSocketがオープンしているかを示します。
+        /// </summary>
         public bool IsOpen => _socket.State == WebSocketState.Open;
+
+        /// <summary>
+        /// クライアントからチャットへの参加が行われたかを示します。
+        /// </summary>
         public bool IsJoin { get; private set; }
+
+        /// <summary>
+        /// クライアントのユーザ名
+        /// </summary>
         public string UserName { get; private set; } = "";
+
+        /// <summary>
+        /// クライアントの識別
+        /// </summary>
+        public string Id { get; private set; } = Guid.NewGuid().ToString();
 
         public void Dispose()
         {
@@ -55,11 +71,16 @@ namespace WebSocketChatSample
                     true, CancellationToken.None);
         }
 
-        public async Task WaitJoinAsync()
+        /// <summary>
+        /// クライアントのチャットへの参加の受信を行います。
+        /// </summary>
+        /// <param name="timeout">タイムアウト時間 msec</param>
+        /// <returns></returns>
+        public async Task RecieveJoinAsync(int timeout = 5000)
         {
             var buffer = new byte[4096];
             var tokensource = new CancellationTokenSource();
-            tokensource.CancelAfter(5000);
+            tokensource.CancelAfter(timeout);
             var result = await _socket.ReceiveAsync(new ArraySegment<byte>(buffer), tokensource.Token);
 
             if (result.MessageType == WebSocketMessageType.Text && result.EndOfMessage)
@@ -76,6 +97,10 @@ namespace WebSocketChatSample
             }
         }
 
+        /// <summary>
+        /// メッセージの受信を行います。
+        /// </summary>
+        /// <returns></returns>
         public async Task ReceiveAsync()
         {
             if (!IsJoin) return;
