@@ -72,49 +72,50 @@
 <script src="scripts/vendor.min.js"></script>
 <script type="text/javascript">
     var model = {
+        endpoint : "ws://" + location.host + "/ws",
         messages: [],
         sendMessage: "",
         isOpen: false,
         consoleMessages: [],
-        userName: ""
+        userName: "",
+        websocket: null,
+        connect: function() {
+            if (this.websocket !== null)
+                return;
+            this.websocket = new WebSocket(this.endpoint);
+            var self = this;
+            this.websocket.onopen = function (event) {
+                self.isOpen = true;
+                self.websocket.send(JSON.stringify({ MessageType: "JoinMessage", UserName: model.userName }));
+            };
+            this.websocket.onerror = function (event) {
+                console.debug(event);
+            };
+            this.websocket.onclose = function (event) {
+                self.isOpen = false;
+                self.websocket = null;
+            };
+            this.websocket.onmessage = function (event) {
+                self.messages.push(JSON.parse(event.data));
+                Vue.nextTick(function () {
+                    window.scrollTo(0, document.body.scrollHeight);
+                });
+            };
+        },
+        send: function() {
+            if (this.isOpen && this.sendMessage !== "") {
+                this.websocket.send(this.sendMessage);
+                this.sendMessage = "";
+            }
+        }
     };
-    var websocket = null;
-
-    var endpoint = "ws://" + location.host + "/ws";
 
     var vuemodel = new Vue({
         el: '#app',
         data: model,
         methods: {
-            Connect: function() {
-                if (websocket !== null)
-                    return;
-
-                websocket = new WebSocket(endpoint);
-                websocket.onopen = function(event) {
-                    model.isOpen = true;
-                    websocket.send(JSON.stringify({ MessageType: "JoinMessage", UserName: model.userName }));
-                };
-                websocket.onerror = function(event) {
-                    console.debug(event);
-                };
-                websocket.onclose = function(event) {
-                    model.isOpen = false;
-                    websocket = null;
-                };
-                websocket.onmessage = function(event) {
-                    model.messages.push(JSON.parse(event.data));
-                    Vue.nextTick(function() {
-                        window.scrollTo(0, document.body.scrollHeight);
-                    });
-                };
-            },
-            Send: function() {
-                if (this.isOpen && this.sendMessage !== "") {
-                    websocket.send(this.sendMessage);
-                    this.sendMessage = "";
-                }
-            }
+            Connect: model.connect,
+            Send: model.send
         }
     });
 
