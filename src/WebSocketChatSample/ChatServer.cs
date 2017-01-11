@@ -4,18 +4,55 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Azure.EventHubs;
+using Microsoft.Azure.EventHubs.Processor;
 
 namespace WebSocketChatSample
 {
-    public class ChatServer
+    public class ChatServer : IEventProcessorFactory
     {
         private readonly AsyncLock _asyncLock = new AsyncLock();
         private readonly List<ChatClient> _clients = new List<ChatClient>();
+        private EventProcessorHost _eventProcessorHost;
+        private readonly ChatMessageProcessor _recieveProcessor = new ChatMessageProcessor();
+        private readonly SendChatMessageToEventHubsObserver _sendObserver = new SendChatMessageToEventHubsObserver();
+
+        public string EhConnectionString { get; set; } = "";
+        public string EhEntityPath { get; set; } = "";
+        public string StorageContainerName { get; set; } = "";
+        public string StorageAccountName { get; set; } = "";
+        public string StorageAccountKey { get; set; } = "";
+
+        public string StorageConnectionString
+            => $"DefaultEndpointsProtocol=https;AccountName={StorageAccountName};AccountKey={StorageAccountKey}";
+
+        public IEventProcessor CreateEventProcessor(PartitionContext context)
+        {
+            return _recieveProcessor;
+        }
 
         public void Map(IApplicationBuilder app)
         {
             app.UseWebSockets();
             app.Use(Acceptor);
+        }
+
+        public async Task EventRecieveEventAsync()
+        {
+            _sendObserver.EhConnectionString = EhConnectionString;
+            _sendObserver.EhEntityPath = EhEntityPath;
+
+            if (_eventProcessorHost == null)
+            {
+                _eventProcessorHost = new EventProcessorHost(
+                    EhEntityPath,
+                    PartitionReceiver.DefaultConsumerGroupName,
+                    EhConnectionString,
+                    StorageConnectionString,
+                    StorageContainerName);
+
+                await _eventProcessorHost.RegisterEventProcessorFactoryAsync(this).ConfigureAwait(false);
+            }
         }
 
 
@@ -33,6 +70,8 @@ namespace WebSocketChatSample
 
             if (!client.IsJoin)
                 return;
+
+
             using (await _asyncLock.LockAsync())
             {
                 _clients.AsParallel().ForAll(
@@ -45,14 +84,10 @@ namespace WebSocketChatSample
                             Message = $"{client.UserName} さんが入室しました",
                             RecieveTime = DateTimeOffset.Now
                         });
-
-                        // ほかのクライアントと相互接続
-                        x.Subscribe(client);
-                        client.Subscribe(x);
                     });
 
-                // エコーバック
-                client.Subscribe(client);
+                client.Subscribe(_sendObserver);
+                _recieveProcessor.Subscribe(client);
 
                 // 切断時動作
                 client.Subscribe(s => { }, async () => await Close(client));
