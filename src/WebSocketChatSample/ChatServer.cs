@@ -74,18 +74,14 @@ namespace WebSocketChatSample
 
             using (await _asyncLock.LockAsync())
             {
-                _clients.AsParallel().ForAll(
-                    x =>
-                    {
-                        // 入室メッセージを送信
-                        x.OnNext(new ChatMessage
-                        {
-                            UserName = "管理者",
-                            Message = $"{client.UserName} さんが入室しました",
-                            RecieveTime = DateTimeOffset.Now
-                        });
-                    });
+                _sendObserver.OnNext(new ChatMessage
+                {
+                    UserName = "管理者",
+                    Message = $"{client.UserName} さんが入室しました",
+                    RecieveTime = DateTimeOffset.Now
+                });
 
+                // 送信と受信を設定
                 client.Subscribe(_sendObserver);
                 _recieveProcessor.Subscribe(client);
 
@@ -107,18 +103,12 @@ namespace WebSocketChatSample
                 _clients.Remove(client);
 
                 // 退室メッセージを送信
-                _clients.ForEach(
-                    x =>
-                    {
-                        _clients.ForEach(
-                            y =>
-                                y.OnNext(new ChatMessage
-                                {
-                                    UserName = "管理者",
-                                    Message = $"{x.UserName} さんが退室しました",
-                                    RecieveTime = DateTimeOffset.Now
-                                }));
-                    });
+                _sendObserver.OnNext(new ChatMessage
+                {
+                    UserName = "管理者",
+                    Message = $"{client.UserName} さんが退室しました",
+                    RecieveTime = DateTimeOffset.Now
+                });                
             }
         }
     }

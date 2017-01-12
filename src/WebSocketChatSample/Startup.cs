@@ -8,16 +8,17 @@ namespace WebSocketChatSample
 {
     public class Startup
     {
-        private readonly ChatServer chatServer = new ChatServer();
-
-        private readonly IConfigurationRoot Configuration;
+        private readonly ChatServer _chatServer;
+        private readonly IConfigurationRoot _configuration;
 
         public Startup()
         {
             var builder = new ConfigurationBuilder()
                     .AddEnvironmentVariables()
                 ;
-            Configuration = builder.Build();
+            _configuration = builder.Build();
+
+            _chatServer = new ChatServer();
         }
 
         // This method gets called by the runtime. Use this method to add services to the container.
@@ -34,18 +35,18 @@ namespace WebSocketChatSample
             if (env.IsDevelopment())
                 app.UseDeveloperExceptionPage();
 
-            chatServer.EhConnectionString = Configuration.GetSection("EventHubs:EhConnectionString").Value;
-            chatServer.EhEntityPath = Configuration.GetSection("EventHubs:EhEntityPath").Value;
-            chatServer.StorageContainerName = Configuration.GetSection("EventHubs:StorageContainerName").Value;
-            chatServer.StorageAccountKey = Configuration.GetSection("EventHubs:StorageAccountKey").Value;
-            chatServer.StorageAccountName = Configuration.GetSection("EventHubs:StorageAccountName").Value;
+            _chatServer.EhConnectionString = _configuration.GetSection("EventHubs:EhConnectionString").Value;
+            _chatServer.EhEntityPath = _configuration.GetSection("EventHubs:EhEntityPath").Value;
+            _chatServer.StorageContainerName = _configuration.GetSection("EventHubs:StorageContainerName").Value;
+            _chatServer.StorageAccountKey = _configuration.GetSection("EventHubs:StorageAccountKey").Value;
+            _chatServer.StorageAccountName = _configuration.GetSection("EventHubs:StorageAccountName").Value;
 
             app.UseDefaultFiles();
             app.UseStaticFiles();
 
-            app.Map("/ws", chatServer.Map);
+            app.Map("/ws", _chatServer.Map);
 
-            await chatServer.EventRecieveEventAsync();
+            await _chatServer.EventRecieveEventAsync();
         }
     }
 }
