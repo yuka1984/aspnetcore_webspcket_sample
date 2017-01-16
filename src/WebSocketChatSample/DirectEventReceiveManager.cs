@@ -29,7 +29,7 @@ namespace WebSocketChatSample
             return _chatmessageSubject.Subscribe(observer);
         }
 
-        public async Task RegisterEventProcessorFactoryAsync()
+        public async Task EventRecieveAsync()
         {
             var connectionStringBuilder = new EventHubsConnectionStringBuilder(EventHubConnectionString)
             {

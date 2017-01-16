@@ -53,13 +53,13 @@ namespace WebSocketChatSample
             //        StorageConnectionString,
             //        StorageContainerName);
 
-            //    await _eventProcessorHost.RegisterEventProcessorFactoryAsync(this).ConfigureAwait(false);
+            //    await _eventProcessorHost.EventRecieveAsync(this).ConfigureAwait(false);
             //}
 
             if (DirectEventReceiveManager == null)
             {
                 DirectEventReceiveManager = new DirectEventReceiveManager(EhEntityPath, PartitionReceiver.DefaultConsumerGroupName, EhConnectionString);
-                await DirectEventReceiveManager.RegisterEventProcessorFactoryAsync();
+                await DirectEventReceiveManager.EventRecieveAsync();
             }
         }
 
