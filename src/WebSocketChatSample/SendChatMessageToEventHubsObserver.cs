@@ -21,15 +21,25 @@ namespace WebSocketChatSample
 
         public async void OnNext(ChatMessage value)
         {
-            var connectionStringBuilder = new EventHubsConnectionStringBuilder(EhConnectionString)
+            try
             {
-                EntityPath = EhEntityPath
-            };
-            client = EventHubClient.CreateFromConnectionString(connectionStringBuilder.ToString());
+                if (client == null)
+                {
+                    var connectionStringBuilder = new EventHubsConnectionStringBuilder(EhConnectionString)
+                    {
+                        EntityPath = EhEntityPath
+                    };
+                    client = EventHubClient.CreateFromConnectionString(connectionStringBuilder.ToString());
+                }
 
-            await client.SendAsync(new EventData(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(value))));
-
-            await client.CloseAsync();
+                await client.SendAsync(new EventData(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(value))));                
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                client = null;
+            }
+            
         }
     }
 }
