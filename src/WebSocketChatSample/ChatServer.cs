@@ -16,6 +16,7 @@ namespace WebSocketChatSample
         private EventProcessorHost _eventProcessorHost;
         private readonly ChatMessageProcessor _recieveProcessor = new ChatMessageProcessor();
         private readonly SendChatMessageToEventHubsObserver _sendObserver = new SendChatMessageToEventHubsObserver();
+        public DirectEventReceiveManager DirectEventReceiveManager;
 
         public string EhConnectionString { get; set; } = "";
         public string EhEntityPath { get; set; } = "";
@@ -42,16 +43,23 @@ namespace WebSocketChatSample
             _sendObserver.EhConnectionString = EhConnectionString;
             _sendObserver.EhEntityPath = EhEntityPath;
 
-            if (_eventProcessorHost == null)
-            {
-                _eventProcessorHost = new EventProcessorHost(
-                    EhEntityPath,
-                    PartitionReceiver.DefaultConsumerGroupName,
-                    EhConnectionString,
-                    StorageConnectionString,
-                    StorageContainerName);
+            //if (_eventProcessorHost == null)
+            //{
+            //    _eventProcessorHost = new EventProcessorHost(
+            //        "oihod",
+            //        EhEntityPath,
+            //        PartitionReceiver.DefaultConsumerGroupName,
+            //        EhConnectionString,
+            //        StorageConnectionString,
+            //        StorageContainerName);
 
-                await _eventProcessorHost.RegisterEventProcessorFactoryAsync(this).ConfigureAwait(false);
+            //    await _eventProcessorHost.RegisterEventProcessorFactoryAsync(this).ConfigureAwait(false);
+            //}
+
+            if (DirectEventReceiveManager == null)
+            {
+                DirectEventReceiveManager = new DirectEventReceiveManager(EhEntityPath, PartitionReceiver.DefaultConsumerGroupName, EhConnectionString);
+                await DirectEventReceiveManager.RegisterEventProcessorFactoryAsync();
             }
         }
 
@@ -83,7 +91,7 @@ namespace WebSocketChatSample
 
                 // 送信と受信を設定
                 client.Subscribe(_sendObserver);
-                _recieveProcessor.Subscribe(client);
+                DirectEventReceiveManager.Subscribe(client);
 
                 // 切断時動作
                 client.Subscribe(s => { }, async () => await Close(client));
