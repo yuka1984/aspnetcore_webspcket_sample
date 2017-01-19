@@ -15,7 +15,8 @@
     "Microsoft.Azure.EventHubs": "0.0.4-preview",
     "Microsoft.Azure.EventHubs.Processor": "0.0.4-preview",
     "Microsoft.Extensions.Configuration": "1.1.0",
-    "Microsoft.Extensions.Configuration.Json": "1.1.0"
+    "Microsoft.Extensions.Configuration.Json": "1.1.0",
+    "AMQPNetLite": "1.2.2"
   },
 
   "tools": {

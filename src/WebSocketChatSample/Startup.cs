@@ -28,18 +28,24 @@ namespace WebSocketChatSample
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public async void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
+        public async void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory, IApplicationLifetime applicationLifetim)
         {
             loggerFactory.AddConsole();
 
             if (env.IsDevelopment())
                 app.UseDeveloperExceptionPage();
 
-            _chatServer.EhConnectionString = _configuration.GetSection("EventHubs:EhConnectionString").Value;
-            _chatServer.EhEntityPath = _configuration.GetSection("EventHubs:EhEntityPath").Value;
-            _chatServer.StorageContainerName = _configuration.GetSection("EventHubs:StorageContainerName").Value;
-            _chatServer.StorageAccountKey = _configuration.GetSection("EventHubs:StorageAccountKey").Value;
-            _chatServer.StorageAccountName = _configuration.GetSection("EventHubs:StorageAccountName").Value;
+            _chatServer.TopicsReciever.NameSpaceUrl =
+                _chatServer.TopicsSender.NameSpaceUrl = _configuration.GetSection("ServiceBus:NameSpaceUrl").Value;
+
+            _chatServer.TopicsReciever.PolicyName =
+                _chatServer.TopicsSender.PolicyName = _configuration.GetSection("ServiceBus:PolicyName").Value;
+
+            _chatServer.TopicsReciever.Key =
+                _chatServer.TopicsSender.Key = _configuration.GetSection("ServiceBus:Key").Value;
+
+            _chatServer.TopicsReciever.Topic =
+                _chatServer.TopicsSender.Topic = _configuration.GetSection("ServiceBus:Topic").Value;
 
             app.UseDefaultFiles();
             app.UseStaticFiles();
@@ -47,6 +53,13 @@ namespace WebSocketChatSample
             app.Map("/ws", _chatServer.Map);
 
             await _chatServer.EventRecieveEventAsync();
+
+            applicationLifetim.ApplicationStopping.Register(Stopping);
+        }
+
+        private void Stopping()
+        {
+            _chatServer.Dispose();
         }
     }
 }
