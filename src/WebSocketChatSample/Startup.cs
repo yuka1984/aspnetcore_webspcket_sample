@@ -3,13 +3,14 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using WebSocketChatSample.Models;
 
 namespace WebSocketChatSample
 {
     public class Startup
     {
-        private readonly ChatServer _chatServer;
         private readonly IConfigurationRoot _configuration;
+        private ChatServer _chatServer;
 
         public Startup()
         {
@@ -17,14 +18,17 @@ namespace WebSocketChatSample
                     .AddEnvironmentVariables()
                 ;
             _configuration = builder.Build();
-
-            _chatServer = new ChatServer();
         }
 
         // This method gets called by the runtime. Use this method to add services to the container.
         // For more information on how to configure your application, visit http://go.microsoft.com/fwlink/?LinkID=398940
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddMvc();
+            services.Add(new ServiceDescriptor(typeof(IRoomService), typeof(DebugRoomService), ServiceLifetime.Singleton));
+            services.Add(new ServiceDescriptor(typeof(ChatServer), typeof(ChatServer), ServiceLifetime.Singleton));
+
+            _chatServer = services.BuildServiceProvider().GetService<ChatServer>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -49,6 +53,8 @@ namespace WebSocketChatSample
 
             app.UseDefaultFiles();
             app.UseStaticFiles();
+
+            app.UseMvc();
 
             app.Map("/ws", _chatServer.Map);
 

@@ -34,6 +34,11 @@
             <h1>WebSocket Chat Sample</h1>
             <p>ASP.NET CoreでWebSocketを扱うサンプルアプリケーションです。</p>
             <div v-if="!isOpen" class="input-group">
+                <select v-model="selectedroom">
+                    <option v-for="room in rooms" v-bind:value="room">
+                        {{ room.name }}
+                    </option>
+                </select>
                 <input type="text" v-model="userName" v-on:keyup.enter="Connect" class="form-control" placeholder="input user name">
                 <span class="input-group-btn">
                     <button v-on:click="Connect" class="btn btn-default" type="button">参加</button>
@@ -79,6 +84,8 @@
         consoleMessages: [],
         userName: "",
         websocket: null,
+        rooms: [],
+        selectedroom: null,
         connect: function() {
             if (this.websocket !== null)
                 return;
@@ -86,7 +93,7 @@
             var self = this;
             this.websocket.onopen = function (event) {
                 self.isOpen = true;
-                self.websocket.send(JSON.stringify({ MessageType: "JoinMessage", UserName: model.userName }));
+                self.websocket.send(JSON.stringify({ MessageType: "JoinMessage", UserName: model.userName, RoomId: self.selectedroom.id }));
             };
             this.websocket.onerror = function (event) {
                 console.debug(event);
@@ -116,6 +123,12 @@
         methods: {
             Connect: model.connect,
             Send: model.send
+        },
+        beforeCreate: function() {
+            fetch(location.origin + "/api/room").then(function(result) { return result.json(); })
+                .then(function(result) {
+                    model.rooms = result;
+                });
         }
     });
 

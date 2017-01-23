@@ -1,11 +1,14 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Linq;
 using System.Net.WebSockets;
 using System.Reactive.Subjects;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using WebSocketChatSample.Models;
 
 namespace WebSocketChatSample
 {
@@ -13,10 +16,12 @@ namespace WebSocketChatSample
     {
         private readonly Subject<ChatMessage> _receiveSubject;
         private readonly WebSocket _socket;
+        private readonly IRoomService _roomService;
 
-        public ChatClient(WebSocket socket)
+        public ChatClient(WebSocket socket, IRoomService roomService)
         {
             _socket = socket;
+            _roomService = roomService;
             _receiveSubject = new Subject<ChatMessage>();
         }
 
@@ -34,6 +39,11 @@ namespace WebSocketChatSample
         /// クライアントのユーザ名
         /// </summary>
         public string UserName { get; private set; } = "";
+
+        /// <summary>
+        /// 参加した部屋番号
+        /// </summary>
+        public long RoomId { get; private set; }
 
         /// <summary>
         /// クライアントの識別
@@ -64,11 +74,14 @@ namespace WebSocketChatSample
 
         public async void OnNext(ChatMessage value)
         {
-            if (_socket.State == WebSocketState.Open)
-                await _socket.SendAsync(
-                    new ArraySegment<byte>(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(value))),
-                    WebSocketMessageType.Text,
-                    true, CancellationToken.None);
+            if (value.RoomId == this.RoomId)
+            {
+                if (_socket.State == WebSocketState.Open)
+                    await _socket.SendAsync(
+                        new ArraySegment<byte>(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(value))),
+                        WebSocketMessageType.Text,
+                        true, CancellationToken.None);
+            }            
         }
 
         /// <summary>
@@ -89,9 +102,10 @@ namespace WebSocketChatSample
                     JsonConvert.DeserializeObject<JoinMessage>(Encoding.UTF8.GetString(buffer, 0, result.Count));
                 if (
                     JoinMessage.MessageTypeKeyword.Equals(joinmessage.MessageType,
-                        StringComparison.CurrentCultureIgnoreCase) && !string.IsNullOrWhiteSpace(joinmessage.UserName))
+                        StringComparison.CurrentCultureIgnoreCase) && !string.IsNullOrWhiteSpace(joinmessage.UserName) &&  _roomService.GetRooms().Any(x=> x.Id == joinmessage.RoomId))
                 {
                     IsJoin = true;
+                    RoomId = joinmessage.RoomId ?? 0;
                     UserName = joinmessage.UserName;
                 }
             }
@@ -133,7 +147,8 @@ namespace WebSocketChatSample
                         {
                             UserName = UserName,
                             Message = Encoding.UTF8.GetString(buffer, 0, resultCount),
-                            RecieveTime = DateTimeOffset.Now
+                            RecieveTime = DateTimeOffset.Now,
+                            RoomId = this.RoomId,
                         });
                         resultCount = 0;
                     }

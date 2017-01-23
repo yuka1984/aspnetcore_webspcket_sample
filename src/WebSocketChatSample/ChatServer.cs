@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Azure.EventHubs;
 using Microsoft.Azure.EventHubs.Processor;
+using WebSocketChatSample.Models;
 using WebSocketChatSample.ServuceBus;
 
 namespace WebSocketChatSample
@@ -18,6 +19,12 @@ namespace WebSocketChatSample
         private readonly ChatMessageProcessor _recieveProcessor = new ChatMessageProcessor();
         public readonly TopicsSender TopicsSender = new TopicsSender();
         public readonly TopicsReciever TopicsReciever = new TopicsReciever();
+
+        private readonly IRoomService _roomService;
+        public ChatServer(IRoomService roomService)
+        {
+            _roomService = roomService;
+        }
 
         public IEventProcessor CreateEventProcessor(PartitionContext context)
         {
@@ -44,7 +51,7 @@ namespace WebSocketChatSample
                 return;
             }
             var websocket = await hc.WebSockets.AcceptWebSocketAsync();
-            var client = new ChatClient(websocket);
+            var client = new ChatClient(websocket, _roomService);
 
             await client.RecieveJoinAsync();
 
@@ -58,7 +65,8 @@ namespace WebSocketChatSample
                 {
                     UserName = "管理者",
                     Message = $"{client.UserName} さんが入室しました",
-                    RecieveTime = DateTimeOffset.Now
+                    RecieveTime = DateTimeOffset.Now,
+                    RoomId = client.RoomId
                 });
 
                 // 送信と受信を設定
@@ -87,7 +95,8 @@ namespace WebSocketChatSample
                 {
                     UserName = "管理者",
                     Message = $"{client.UserName} さんが退室しました",
-                    RecieveTime = DateTimeOffset.Now
+                    RecieveTime = DateTimeOffset.Now,
+                    RoomId = client.RoomId
                 });                
             }
         }
